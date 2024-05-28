@@ -1,0 +1,24 @@
+#!/bin/bash
+
+DOCKER_COMPOSE_FILE='docker-compose.yaml'
+CONSOLE_SLEEP=10
+ATTACH_SLEEP=15  # Should be more than CONSOLE_SLEEP
+
+tmux \
+    new-session -s owasp-tester -d \
+                 "docker compose -f \"${DOCKER_COMPOSE_FILE}\" up" \; \
+    split-window "sleep ${CONSOLE_SLEEP}; docker compose exec owasp bash" \; \
+    split-window "sleep ${CONSOLE_SLEEP}; docker compose exec owasp bash" \; \
+    select-layout even-vertical
+
+echo "Waiting for startup..."
+sleep $ATTACH_SLEEP
+
+tmux send -t owasp.1 tail Space -f Space /var/log/apache2/* ENTER
+tmux send -t owasp.2 'curl owasp --header "Cookie: bob=bob"'
+
+tmux set -g mouse on
+
+tmux attach -t owasp-tester
+
+docker compose -f "${DOCKER_COMPOSE_FILE}" down
